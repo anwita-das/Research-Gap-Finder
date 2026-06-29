@@ -1,0 +1,17 @@
+{
+  "gap_id": "",
+
+  "source_node": "",
+
+  "target_node": "",
+
+  "relation": "",
+
+  "motif_score": 0.0,
+
+  "graphsage_score": 0.0,
+
+  "confidence": 0.0,
+
+  "status": "candidate"
+}
