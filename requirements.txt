@@ -1,0 +1,14 @@
+requests
+python-dotenv
+networkx
+streamlit
+pyvis
+faiss-cpu
+sentence-transformers
+torch
+torch-geometric
+langgraph
+langchain
+groq
+pandas
+numpy
