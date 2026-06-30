@@ -171,7 +171,7 @@ def save_results(papers):
 
 
     os.makedirs(
-        OUTPUT_DIR,
+        OUTPUT_FILE,
         exist_ok=True
     )
 
@@ -182,7 +182,7 @@ def save_results(papers):
 
 
     output_file = os.path.join(
-        OUTPUT_DIR,
+        OUTPUT_FILE,
         filename
     )
 
