@@ -6,21 +6,16 @@ from datetime import datetime
 from tqdm import tqdm
 
 
-# -----------------------------
 # SETTINGS
-# -----------------------------
 
-OUTPUT_FILE = "data/arxiv_results.json"
+OUTPUT_FILE = "data/raw/arxiv"
 
 PAGE_SIZE = 100
 
 RATE_LIMIT = 3
 
 
-
-# -----------------------------
 # CREATE PAPER FORMAT
-# -----------------------------
 
 def create_paper_schema():
 
@@ -52,10 +47,8 @@ def create_paper_schema():
     }
 
 
-
-# -----------------------------
 # CONVERT ARXIV PAPER
-# -----------------------------
+
 
 def convert_arxiv_result(result):
 
@@ -68,7 +61,7 @@ def convert_arxiv_result(result):
     )
 
 
-    paper["paper_id"] = arxiv_id
+    paper["paper_id"] =  "arxiv_" + arxiv_id
 
     paper["title"] = (
         result.title
@@ -118,11 +111,7 @@ def convert_arxiv_result(result):
 
     return paper
 
-
-
-# -----------------------------
 # FETCH FROM ARXIV
-# -----------------------------
 
 def fetch_papers(query, total):
 
@@ -177,23 +166,29 @@ def fetch_papers(query, total):
 
     return papers
 
-
-
-# -----------------------------
 # SAVE JSON
-# -----------------------------
-
 def save_results(papers):
 
 
     os.makedirs(
-        "data",
+        OUTPUT_DIR,
         exist_ok=True
     )
 
 
+    filename = (
+        f"arxiv_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    )
+
+
+    output_file = os.path.join(
+        OUTPUT_DIR,
+        filename
+    )
+
+
     with open(
-        OUTPUT_FILE,
+        output_file,
         "w",
         encoding="utf-8"
     ) as file:
@@ -215,7 +210,8 @@ def save_results(papers):
     print(
         "Saved",
         len(papers),
-        "papers"
+        "papers to",
+        output_file
     )
 
 

@@ -50,7 +50,7 @@ class SemanticScholarClient:
     @staticmethod
     def _load_environment() -> None:
         """Load environment variables from a .env file if it exists."""
-        project_root = Path(__file__).resolve().parents[2]
+        project_root = Path(__file__).resolve().parents[1]
         dotenv_path = project_root / ".env"
 
         if dotenv_path.exists():
@@ -221,7 +221,7 @@ class SemanticScholarClient:
                 continue
 
         return {
-            "paper_id": raw_paper.get("paperId", ""),
+            "paper_id": "semantic_" + raw_paper.get("paperId", ""),
             "title": raw_paper.get("title", ""),
             "abstract": raw_paper.get("abstract", ""),
             "authors": mapped_authors,
@@ -235,13 +235,17 @@ class SemanticScholarClient:
             "citations": mapped_citations,
             "references": mapped_references,
             "url": raw_paper.get("url", ""),
-            "pdf_url": "",
+            "pdf_url": (
+                raw_paper.get("openAccessPdf", {}).get("url", "")
+                if isinstance(raw_paper.get("openAccessPdf"), dict)
+                else ""
+            ),
             "source": ["semantic_scholar"],
             "metadata": {
                 "citation_count": raw_paper.get("citationCount", 0) or 0,
                 "reference_count": raw_paper.get("referenceCount", 0) or 0,
                 "publication_date": raw_paper.get("publicationDate", ""),
-                "updated_at": "",
+                "updated_at": datetime.now().isoformat(),
             },
         }
 
@@ -277,6 +281,133 @@ class SemanticScholarClient:
 
         logger.info("Saved %s papers to %s", len(papers), destination_path)
         return destination_path
+
+    def get_paper_by_identifier(
+        self,
+        doi: Optional[str] = None,
+        arxiv_id: Optional[str] = None,
+        title: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Retrieve the best matching paper using DOI, ArXiv ID, or an exact title.
+
+        Lookup order is DOI, ArXiv ID, and finally an exact title search. The
+        method returns the mapped paper schema object for the first successful
+        match, or None if no matching paper is found.
+        """
+        candidates: List[tuple[str, str]] = []
+
+        if doi and doi.strip():
+            candidates.append((doi.strip(), "DOI"))
+        if arxiv_id and arxiv_id.strip():
+            candidates.append((arxiv_id.strip(), "ArXiv"))
+        if title and title.strip():
+            candidates.append((title.strip(), "title"))
+
+        if not candidates:
+            logger.warning("No lookup values provided for Semantic Scholar paper lookup")
+            return None
+
+        fields = (
+            "paperId,"
+            "title,"
+            "abstract,"
+            "authors,"
+            "year,"
+            "venue,"
+            "externalIds,"
+            "citationCount,"
+            "referenceCount,"
+            "references,"
+            "citations,"
+            "fieldsOfStudy,"
+            "publicationDate,"
+            "openAccessPdf,"
+            "url"
+        )
+
+        for value, lookup_type in candidates:
+            if lookup_type == "DOI":
+                query = f"DOI:{value}"
+            elif lookup_type == "ArXiv":
+                query = f"arXiv:{value}"
+            else:
+                query = f'"{value}"'
+
+            logger.info(
+                "Looking up Semantic Scholar paper by %s using query=%s",
+                lookup_type,
+                query,
+            )
+
+            try:
+                response = self._perform_request_with_retries(
+                    "GET",
+                    self.SEARCH_ENDPOINT,
+                    params={
+                        "query": query,
+                        "limit": 1,
+                        "fields": fields,
+                    },
+                    timeout=self.DEFAULT_TIMEOUT,
+                )
+            except requests.HTTPError as exc:
+                status_code = exc.response.status_code if exc.response else None
+                if status_code == 404:
+                    logger.warning(
+                        "No Semantic Scholar paper found for %s lookup using %s",
+                        lookup_type,
+                        value,
+                    )
+                    continue
+
+                logger.warning(
+                    "Semantic Scholar paper lookup by %s failed for %s: %s",
+                    lookup_type,
+                    value,
+                    exc,
+                )
+                continue
+            except requests.RequestException as exc:
+                logger.warning(
+                    "Semantic Scholar paper lookup by %s failed for %s: %s",
+                    lookup_type,
+                    value,
+                    exc,
+                )
+                continue
+
+            data = response.json()
+            if not isinstance(data, dict):
+                logger.warning(
+                    "Unexpected response format from Semantic Scholar API during %s lookup",
+                    lookup_type,
+                )
+                continue
+
+            batch: List[Dict[str, Any]] = []
+            if isinstance(data.get("data"), list):
+                batch = [paper for paper in data.get("data", []) if isinstance(paper, dict)]
+            elif isinstance(data, dict) and data.get("paperId"):
+                batch = [data]
+
+            if not batch:
+                logger.warning(
+                    "No Semantic Scholar paper found for %s lookup using %s",
+                    lookup_type,
+                    value,
+                )
+                continue
+
+            mapped_paper = self._map_paper_to_schema(batch[0])
+            logger.info(
+                "Resolved Semantic Scholar paper for %s lookup: %s",
+                lookup_type,
+                mapped_paper.get("title", ""),
+            )
+            return mapped_paper
+
+        logger.warning("No Semantic Scholar paper matched the provided identifiers")
+        return None
 
     def search_papers(self, query: str, limit: int = 100) -> Dict[str, Any]:
         """Search for papers using the Semantic Scholar Graph API.
@@ -315,6 +446,7 @@ class SemanticScholarClient:
                 "citations,"
                 "fieldsOfStudy,"
                 "publicationDate,"
+                "openAccessPdf,"
                 "url"
             ),
         }
@@ -335,6 +467,8 @@ class SemanticScholarClient:
                 raise ValueError("Unexpected response format from Semantic Scholar API")
 
             batch = data.get("data", [])
+            if not batch:
+                break
             if not isinstance(batch, list):
                 raise ValueError("Unexpected search result format from Semantic Scholar API")
 
