@@ -3,6 +3,19 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 
+def _normalize_string_value(value: Any) -> str:
+    """Convert a scalar or object-style entity into a clean string."""
+    if isinstance(value, str):
+        return value.strip()
+
+    if isinstance(value, dict):
+        name = value.get("name")
+        if isinstance(name, str):
+            return name.strip()
+
+    return ""
+
+
 def validate_list(values: Any) -> List[str]:
     """Validate and normalize a list of string values.
 
@@ -11,7 +24,7 @@ def validate_list(values: Any) -> List[str]:
     - Remove empty strings
     - Remove duplicates
     - Strip whitespace
-    - Keep only strings
+    - Keep only strings and simple object-style values
     - Reject null values
     """
     if not isinstance(values, list):
@@ -21,29 +34,22 @@ def validate_list(values: Any) -> List[str]:
     seen = set()
 
     for value in values:
-        if value is None:
-            continue
-        if not isinstance(value, str):
-            continue
-
-        normalized = value.strip()
+        normalized = _normalize_string_value(value)
         if not normalized:
             continue
-        if normalized in seen:
+
+        key = normalized.lower()
+        if key in seen:
             continue
 
-        seen.add(normalized)
+        seen.add(key)
         cleaned.append(normalized)
 
     return cleaned
 
 
 def validate_extraction_result(result: Any) -> Dict[str, Any]:
-    """Validate an extraction result and preserve the full schema.
-
-    Only the methods, models, and algorithms fields are validated in this phase.
-    Other fields are preserved with defaults when absent or invalid.
-    """
+    """Validate an extraction result and preserve the full shared schema."""
     if not isinstance(result, dict):
         result = {}
 
@@ -52,12 +58,14 @@ def validate_extraction_result(result: Any) -> Dict[str, Any]:
         "methods": validate_list(result.get("methods")),
         "models": validate_list(result.get("models")),
         "algorithms": validate_list(result.get("algorithms")),
-        "datasets": [],
-        "tasks": [],
-        "metrics": [],
-        "claims": [],
+        "datasets": validate_list(result.get("datasets")),
+        "tasks": validate_list(result.get("tasks")),
+        "metrics": validate_list(result.get("metrics")),
+        "claims": validate_list(result.get("claims")),
         "keywords": validate_list(result.get("keywords")),
         "summary": result.get("summary", "") if isinstance(result.get("summary"), str) else "",
     }
 
+    validated["paper_id"] = validated["paper_id"].strip()
+    validated["summary"] = validated["summary"].strip()
     return validated

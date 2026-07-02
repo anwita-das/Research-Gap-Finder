@@ -24,9 +24,8 @@ def clean_json_response(response: str) -> str:
 
     return text
 
-
 def parse_llm_response(response: str) -> List[Dict[str, Any]]:
-    """Parse an LLM response into a list of validated dictionaries."""
+    """Parse an LLM response into a list of raw dictionaries."""
     cleaned = clean_json_response(response)
     if not cleaned:
         return []
@@ -41,40 +40,24 @@ def parse_llm_response(response: str) -> List[Dict[str, Any]]:
     elif not isinstance(payload, list):
         return []
 
-    validated: List[Dict[str, Any]] = []
+    parsed_results: List[Dict[str, Any]] = []
     for item in payload:
         if not isinstance(item, dict):
             continue
 
         normalized = {
-            "paper_id": item.get("paper_id", ""),
-            "methods": item.get("methods", []) or [],
-            "models": item.get("models", []) or [],
-            "algorithms": item.get("algorithms", []) or [],
-            "datasets": [],
-            "tasks": [],
-            "metrics": [],
-            "claims": [],
-            "keywords": item.get("keywords", []) or [],
-            "summary": item.get("summary", ""),
+            "paper_id": item.get("paper_id", "") if isinstance(item.get("paper_id"), str) else "",
+            "methods": item.get("methods"),
+            "models": item.get("models"),
+            "algorithms": item.get("algorithms"),
+            "datasets": item.get("datasets"),
+            "tasks": item.get("tasks"),
+            "metrics": item.get("metrics"),
+            "claims": item.get("claims"),
+            "keywords": item.get("keywords"),
+            "summary": item.get("summary", "") if isinstance(item.get("summary"), str) else "",
         }
 
-        for key in [
-            "methods",
-            "models",
-            "algorithms",
-            "datasets",
-            "tasks",
-            "metrics",
-            "claims",
-            "keywords",
-        ]:
-            if not isinstance(normalized[key], list):
-                normalized[key] = []
+        parsed_results.append(normalized)
 
-        if not isinstance(normalized["summary"], str):
-            normalized["summary"] = ""
-
-        validated.append(normalized)
-
-    return validated
+    return parsed_results
