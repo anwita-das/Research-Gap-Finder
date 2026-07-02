@@ -1,15 +1,15 @@
-"""Orchestrate the ingestion workflow for ArXiv and Semantic Scholar papers."""
+"""Orchestrate the ingestion workflow for ArXiv and openalex papers."""
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, UTC
 import json
 import logging
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from src.ingestion.semantic_scholar_client import SemanticScholarClient
+from src.ingestion.openalex_client import OpenAlexClient
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -22,61 +22,61 @@ except ModuleNotFoundError:
 fetch_papers = _fetch_papers
 
 
-def enrich_paper(arxiv_paper: Dict[str, Any], semantic_client: Optional[SemanticScholarClient] = None) -> Dict[str, Any]:
-    """Enrich an ArXiv paper with Semantic Scholar metadata when available.
+def enrich_paper(arxiv_paper: Dict[str, Any], openalex_client: Optional[OpenAlexClient] = None) -> Dict[str, Any]:
+    """Enrich an ArXiv paper with OpenAlex metadata when available.
 
     Args:
         arxiv_paper: The ArXiv-derived paper schema object.
-        semantic_client: Optional Semantic Scholar client instance.
+        openalex_client: Optional OpenAlex client instance.
 
     Returns:
         A merged paper schema dictionary with ArXiv fields preserved and
-        Semantic Scholar metadata merged in where it is non-empty.
+        OpenAlex metadata merged in where it is non-empty.
     """
     if not isinstance(arxiv_paper, dict):
         raise TypeError("arxiv_paper must be a dictionary")
 
-    if semantic_client is None:
-        semantic_client = SemanticScholarClient()
+    if openalex_client is None:
+        openalex_client = OpenAlexClient()
 
     doi = arxiv_paper.get("doi") or ""
     arxiv_id = arxiv_paper.get("arxiv_id") or ""
     title = arxiv_paper.get("title") or ""
 
-    logger.info("Enriching paper %s using Semantic Scholar", arxiv_paper.get("paper_id", title))
-    semantic_paper = semantic_client.get_paper_by_identifier(
+    logger.info("Enriching paper %s using OpenAlex", arxiv_paper.get("paper_id", title))
+    openalex_paper = openalex_client.get_paper_by_identifier(
         doi=doi or None,
         arxiv_id=arxiv_id or None,
         title=title or None,
     )
 
-    if semantic_paper is None:
-        logger.warning("No Semantic Scholar metadata found for paper %s", arxiv_paper.get("paper_id", title))
+    if openalex_paper is None:
+        logger.warning("No OpenAlex metadata found for paper %s", arxiv_paper.get("paper_id", title))
         return arxiv_paper
 
-    return merge_paper_metadata(arxiv_paper, semantic_paper)
+    return merge_paper_metadata(arxiv_paper, openalex_paper)
 
 
-def merge_paper_metadata(arxiv_paper: Dict[str, Any], semantic_paper: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """Merge ArXiv and Semantic Scholar paper data without overwriting valid values.
+def merge_paper_metadata(arxiv_paper: Dict[str, Any], openalex_paper: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Merge ArXiv and OpenAlex paper data without overwriting valid values.
 
     ArXiv values take precedence for title, abstract, pdf_url, and categories
-    while Semantic Scholar values take precedence for citation-related fields and
-    semantic scholar identifiers.
+    while OpenAlex values take precedence for citation-related fields and
+    OpenAlex identifiers.
     """
     if not isinstance(arxiv_paper, dict):
         raise TypeError("arxiv_paper must be a dictionary")
 
-    if semantic_paper is None:
+    if openalex_paper is None:
         return arxiv_paper
 
-    if not isinstance(semantic_paper, dict):
-        raise TypeError("semantic_paper must be a dictionary")
+    if not isinstance(openalex_paper, dict):
+        raise TypeError("openalex_paper must be a dictionary")
 
     merged = dict(arxiv_paper)
     merged["paper_id"] = arxiv_paper.get(
         "paper_id",
-        semantic_paper.get("paper_id", "")
+        openalex_paper.get("paper_id", "")
     )
     merged["metadata"] = dict(arxiv_paper.get("metadata", {}))
 
@@ -94,59 +94,59 @@ def merge_paper_metadata(arxiv_paper: Dict[str, Any], semantic_paper: Optional[D
 
     for field in preferred_fields:
         if field in {"title", "abstract", "pdf_url"}:
-            merged[field] = _prefer_existing(arxiv_paper.get(field), semantic_paper.get(field))
+            merged[field] = _prefer_existing(arxiv_paper.get(field), openalex_paper.get(field))
         else:
-            merged[field] = _prefer_existing(semantic_paper.get(field), arxiv_paper.get(field))
+            merged[field] = _prefer_existing(openalex_paper.get(field), arxiv_paper.get(field))
 
     for field in ["authors", "year", "venue", "doi", "arxiv_id", "url", "source", "keywords"]:
         if field in ["authors", "year", "venue", "doi", "arxiv_id", "url", "source", "keywords"]:
-            merged[field] = _prefer_existing(arxiv_paper.get(field), semantic_paper.get(field))
+            merged[field] = _prefer_existing(arxiv_paper.get(field), openalex_paper.get(field))
 
-    for field in ["semantic_scholar_id", "citations", "references"]:
-        merged[field] = _prefer_existing(semantic_paper.get(field), arxiv_paper.get(field))
+    for field in ["openalex_id", "citations", "references"]:
+        merged[field] = _prefer_existing(openalex_paper.get(field), arxiv_paper.get(field))
 
     metadata = merged["metadata"]
     metadata["citation_count"] = _prefer_existing(
-        semantic_paper.get("metadata", {}).get("citation_count"),
+        openalex_paper.get("metadata", {}).get("citation_count"),
         arxiv_paper.get("metadata", {}).get("citation_count"),
     )
     metadata["reference_count"] = _prefer_existing(
-        semantic_paper.get("metadata", {}).get("reference_count"),
+        openalex_paper.get("metadata", {}).get("reference_count"),
         arxiv_paper.get("metadata", {}).get("reference_count"),
     )
     metadata["publication_date"] = _prefer_existing(
         arxiv_paper.get("metadata", {}).get("publication_date"),
-        semantic_paper.get("metadata", {}).get("publication_date"),
+        openalex_paper.get("metadata", {}).get("publication_date"),
     )
-    metadata["updated_at"] = datetime.now().isoformat()
+    metadata["updated_at"] = datetime.now(UTC).isoformat()
 
     sources = set()
 
     arxiv_sources = arxiv_paper.get("source", [])
-    semantic_sources = semantic_paper.get("source", [])
+    openalex_sources = openalex_paper.get("source", [])
 
     if isinstance(arxiv_sources, str):
         sources.add(arxiv_sources)
     else:
         sources.update(arxiv_sources)
 
-    if isinstance(semantic_sources, str):
-        sources.add(semantic_sources)
+    if isinstance(openalex_sources, str):
+        sources.add(openalex_sources)
     else:
-        sources.update(semantic_sources)
+        sources.update(openalex_sources)
 
-    merged["source"] = list(sources)
+    merged["source"] = sorted(sources)
 
     return merged
 
 
-def process_topic(research_topic: str, max_papers: int, semantic_client: Optional[SemanticScholarClient] = None) -> List[Dict[str, Any]]:
+def process_topic(research_topic: str, max_papers: int, openalex_client: Optional[OpenAlexClient] = None) -> List[Dict[str, Any]]:
     """Process a research topic by fetching ArXiv papers and enriching them.
 
     Args:
         research_topic: The research topic string to search on ArXiv.
         max_papers: Maximum number of papers to retrieve and enrich.
-        semantic_client: Optional Semantic Scholar client instance.
+        openalex_client: Optional OpenAlex client instance.
 
     Returns:
         A list of merged paper schema objects.
@@ -157,8 +157,8 @@ def process_topic(research_topic: str, max_papers: int, semantic_client: Optiona
     if max_papers <= 0:
         raise ValueError("max_papers must be a positive integer")
 
-    if semantic_client is None:
-        semantic_client = SemanticScholarClient()
+    if openalex_client is None:
+        openalex_client = OpenAlexClient()
 
     logger.info("Processing topic '%s' with max_papers=%s", research_topic, max_papers)
 
@@ -168,8 +168,10 @@ def process_topic(research_topic: str, max_papers: int, semantic_client: Optiona
     arxiv_papers = fetch_papers(research_topic, total=max_papers)
 
     enriched_papers: List[Dict[str, Any]] = []
-    for arxiv_paper in arxiv_papers:
-        enriched_paper = enrich_paper(arxiv_paper, semantic_client=semantic_client)
+    for i, arxiv_paper in enumerate(arxiv_papers, start=1):
+        print(f"Enriching paper {i}: {arxiv_paper.get('title')}")
+        enriched_paper = enrich_paper(arxiv_paper, openalex_client=openalex_client)
+        print(f"Finished paper {i}")
         enriched_papers.append(enriched_paper)
 
     logger.info("Completed enrichment for %s papers", len(enriched_papers))
@@ -218,10 +220,10 @@ def main() -> None:
 
         max_papers = int(max_papers_input) if max_papers_input else 10
 
-        semantic_client = SemanticScholarClient()
+        openalex_client = OpenAlexClient()
         try:
-            papers = process_topic(research_topic, max_papers, semantic_client=semantic_client)
-            enriched_count = sum(1 for paper in papers if paper.get("semantic_scholar_id"))
+            papers = process_topic(research_topic, max_papers, openalex_client=openalex_client)
+            enriched_count = sum(1 for paper in papers if paper.get("openalex_id"))
             arxiv_only_count = len(papers) - enriched_count
             output_path = save_merged_dataset(papers, research_topic)
 
@@ -238,7 +240,7 @@ def main() -> None:
             print(output_path)
             print("---------------------------------------")
         finally:
-            semantic_client.close()
+            openalex_client.close()
     except Exception as exc:  # pragma: no cover - CLI guard
         logger.exception("Ingestion pipeline failed: %s", exc)
         print(f"Error: {exc}")
