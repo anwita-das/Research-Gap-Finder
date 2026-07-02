@@ -67,7 +67,7 @@ class IngestionPipelineTest(unittest.TestCase):
         self.assertEqual(merged["metadata"]["citation_count"], 10)
 
     @patch("src.ingestion.ingestion_pipeline.fetch_papers")
-    @patch("src.ingestion.ingestion_pipeline.SemanticScholarClient")
+    @patch("src.ingestion.ingestion_pipeline.OpenAlexClient")
     def test_process_topic_returns_enriched_papers(self, mock_client_cls: Mock, mock_fetch_papers: Mock) -> None:
         mock_fetch_papers.return_value = [
             {
