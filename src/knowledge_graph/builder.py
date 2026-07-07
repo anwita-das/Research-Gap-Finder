@@ -109,6 +109,7 @@ class GraphBuilder:
         author_node_id = self.add_author(author_name)
         paper_node_id = self._ensure_paper_placeholder(paper_id)
         edge_attrs = self.edge_factory.create_authored_edge()
+        edge_key = edge_attrs.pop("key")
 
         if not self.graph.has_edge(
             author_node_id,
@@ -117,7 +118,7 @@ class GraphBuilder:
             self.graph.add_edge(
                 author_node_id,
                 paper_node_id,
-                key=edge_attrs["key"],
+                key=edge_key,
                 **edge_attrs,
             )
 
@@ -127,6 +128,7 @@ class GraphBuilder:
         citing_node_id = self._ensure_paper_placeholder(citing_paper_id)
         cited_node_id = self._ensure_paper_placeholder(cited_paper_id)
         edge_attrs = self.edge_factory.create_cites_edge()
+        edge_key = edge_attrs.pop("key")
 
         if not self.graph.has_edge(
             citing_node_id,
@@ -135,7 +137,7 @@ class GraphBuilder:
             self.graph.add_edge(
                 citing_node_id,
                 cited_node_id,
-                key=edge_attrs["key"],
+                key=edge_key,
                 **edge_attrs,
             )
 
@@ -150,6 +152,7 @@ class GraphBuilder:
         paper_node_id = self._ensure_paper_placeholder(paper_id)
         venue_node_id = self.add_venue(venue_name, venue_type,)
         edge_attrs = self.edge_factory.create_published_in_edge()
+        edge_key = edge_attrs.pop("key")
 
         if not self.graph.has_edge(
             paper_node_id,
@@ -158,7 +161,7 @@ class GraphBuilder:
             self.graph.add_edge(
                 paper_node_id,
                 venue_node_id,
-                key=edge_attrs["key"],
+                key=edge_key,
                 **edge_attrs,
             )
 
@@ -167,6 +170,9 @@ class GraphBuilder:
         return self.graph
     
     def _paper_node_id(self, paper_id: str) -> str:
+        paper_id = str(paper_id).strip()
+        if paper_id.startswith("paper:"):
+            return paper_id
         return generate_paper_id(paper_id)
     
     def _ensure_paper_node(self, paper_node_id: str, paper_dict:
@@ -460,6 +466,14 @@ class GraphBuilder:
             4
         """
 
+        normalized_paper_id = str(paper_id).strip()
+        if not normalized_paper_id:
+            raise ValueError("paper_id cannot be empty")
+        if not normalized_paper_id.startswith("paper:"):
+            normalized_paper_id = self._paper_node_id(normalized_paper_id)
+
+        paper_node_id = self._ensure_paper_placeholder(normalized_paper_id)
+
         # Initialize summary counters
         summary: dict[str, int] = {
             "methods_added": 0,
@@ -512,7 +526,7 @@ class GraphBuilder:
 
                 node_id = add_method(entity_value)
 
-                edge = connect_method(paper_id, node_id)
+                edge = connect_method(paper_node_id, node_id)
 
                 if edge is not None:
                     summary[summary_key] += 1

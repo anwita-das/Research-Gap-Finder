@@ -9,6 +9,9 @@ from .schema import (
     PLACEHOLDER_PROPERTY,
     RelationshipType,
     VenueProperties,
+    NODE_TYPES,
+    CLAIM,
+    RELATION_TYPES,
 )
 
 class GraphValidationError(ValueError):
@@ -26,7 +29,9 @@ class GraphValidator:
             raise GraphValidationError(f"Node '{node_id}' missing required attribute 'label'.")
         
         label = attrs["label"]
-        if label not in {label.value for label in NodeLabel}:
+        supported_labels = {label.value for label in NodeLabel}
+        supported_labels.update(NODE_TYPES)
+        if label not in supported_labels:
             raise GraphValidationError(
                 f"Node '{node_id}' has invalid label '{label}'."
             )
@@ -42,6 +47,10 @@ class GraphValidator:
             self._validate_author_node(node_id, attrs)
         elif label == NodeLabel.VENUE.value:
             self._validate_venue_node(node_id, attrs)
+        elif label == CLAIM:
+            self._validate_claim_node(node_id, attrs)
+        elif label in NODE_TYPES:
+            self._validate_entity_node(node_id, attrs)
 
     def validate_edge(self, u: Any, v: Any, key: Any, attrs: Dict[str,Any]) -> None:
         """Validate a single edge's attributes."""
@@ -50,7 +59,9 @@ class GraphValidator:
                 f"Edge {u}->{v} (key={key}) missing required attribute'relation'."
         )
         relation = attrs["relation"]
-        if relation not in {rel.value for rel in RelationshipType}:
+        supported_relations = {rel.value for rel in RelationshipType}
+        supported_relations.update(RELATION_TYPES)
+        if relation not in supported_relations:
             raise GraphValidationError(
                 f"Edge {u}->{v} (key={key}) has invalid relationship'{relation}'."
             )
@@ -126,6 +137,23 @@ class GraphValidator:
             raise GraphValidationError(
             f"Venue node '{node_id}' is missing required attributes: {sorted(missing)}."
             )
+
+    def _validate_entity_node(self, node_id: str, attrs: Dict[str, Any]) -> None:
+        required_fields = {"node_id", "label", "name", "normalized_name"}
+        missing = required_fields - set(attrs)
+        if missing:
+            raise GraphValidationError(
+                f"Entity node '{node_id}' is missing required attributes: {sorted(missing)}."
+            )
+
+    def _validate_claim_node(self, node_id: str, attrs: Dict[str, Any]) -> None:
+        required_fields = {"node_id", "label", "text", "normalized_text"}
+        missing = required_fields - set(attrs)
+        if missing:
+            raise GraphValidationError(
+                f"Claim node '{node_id}' is missing required attributes: {sorted(missing)}."
+            )
+
     def _validate_unique_node_ids(self, graph: nx.MultiDiGraph) ->None:
         seen: Set[str] = set()
         for node_id, attrs in graph.nodes(data=True):
