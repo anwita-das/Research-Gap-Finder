@@ -8,7 +8,17 @@ for all semantic entity types.
 import re
 from typing import Optional
 
-from src.knowledge_graph.schema import NODE_TYPES
+from src.knowledge_graph.graph_utils import (
+    generate_author_id,
+    generate_venue_id,
+    normalize_name,
+)
+
+from src.knowledge_graph.schema import (
+    NODE_TYPES,
+    AUTHOR_PREFIX,
+    VENUE_PREFIX,
+)
 
 
 class EntityResolver:
@@ -30,46 +40,12 @@ class EntityResolver:
         """Initialize entity registries for each semantic entity type."""
         # Initialize a registry for each entity type: {normalized_name -> node_id}
         self._registries: dict[str, dict[str, str]] = {entity_type: {} for entity_type in NODE_TYPES}
+        self.authors: dict[str, str] = {}
+        self.venues: dict[str, str] = {}
 
     def normalize(self, text: str) -> str:
-        """
-        Normalize text for entity matching and ID generation.
-
-        Applies a series of transformations to standardize entity names:
-        1. Strip leading/trailing whitespace
-        2. Lowercase all characters
-        3. Collapse multiple spaces to single space
-        4. Replace spaces with underscores (for use in IDs)
-        5. Remove non-alphanumeric characters except underscores
-
-        Args:
-            text: Raw entity name or text to normalize.
-
-        Returns:
-            Normalized text suitable for entity matching and ID generation.
-
-        Example:
-            >>> resolver = EntityResolver()
-            >>> resolver.normalize("ImageNet")
-            'imagenet'
-            >>> resolver.normalize(" image net ")
-            'image_net'
-            >>> resolver.normalize("IMAGENET")
-            'imagenet'
-        """
-        # Strip and lowercase
-        normalized = text.strip().lower()
-
-        # Collapse multiple spaces into single space
-        normalized = re.sub(r"[^\w\s]", " ", normalized)
-
-        # Replace spaces with underscores
-        normalized = re.sub(r"\s+", " ", normalized).strip()
-
-        # Remove punctuation and special characters, keep only alphanumeric and underscores
-        normalized = normalized.replace(" ", "_")
-
-        return normalized
+        """Normalize text for semantic entity matching."""
+        return normalize_name(text)
 
     def entity_exists(self, entity_type: str, normalized_name: str) -> bool:
         """
@@ -170,9 +146,11 @@ class EntityResolver:
         return self._registries[entity_type].copy()
 
     def reset(self) -> None:
-        """Clear all entity registries."""
         for entity_type in self._registries:
             self._registries[entity_type].clear()
+
+        self.authors.clear()
+        self.venues.clear()
 
     def stats(self) -> dict[str, int]:
         """
@@ -181,7 +159,39 @@ class EntityResolver:
         Returns:
             Dictionary mapping entity types to count of registered entities.
         """
-        return {
+        stats = {
             entity_type: len(registry)
             for entity_type, registry in self._registries.items()
         }
+
+        stats["Author"] = len(self.authors)
+        stats["Venue"] = len(self.venues)
+
+        return stats
+    
+    def get_or_create_author(self, name: str) -> str:
+        """
+        Return an existing Author node ID or create a new one.
+        """
+        normalized = normalize_name(name)
+
+        if normalized in self.authors:
+            return self.authors[normalized]
+
+        node_id = generate_author_id(name)
+        self.authors[normalized] = node_id
+        return node_id
+
+
+    def get_or_create_venue(self, name: str) -> str:
+        """
+        Return an existing Venue node ID or create a new one.
+        """
+        normalized = normalize_name(name)
+
+        if normalized in self.venues:
+            return self.venues[normalized]
+
+        node_id = generate_venue_id(name)
+        self.venues[normalized] = node_id
+        return node_id

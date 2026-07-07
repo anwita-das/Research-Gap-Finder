@@ -5,6 +5,63 @@ Defines node labels, relationship types, and collections used throughout
 the knowledge graph construction pipeline.
 """
 
+
+from enum import Enum
+
+# ============================================================================
+# Paper Graph Enums
+# ============================================================================
+
+class NodeLabel(str, Enum):
+    PAPER = "Paper"
+    AUTHOR = "Author"
+    VENUE = "Venue"
+
+
+class RelationshipType(str, Enum):
+    AUTHORED = "AUTHORED"
+    CITES = "CITES"
+    PUBLISHED_IN = "PUBLISHED_IN"
+
+
+class ExportFormat(str, Enum):
+    GRAPHML = "graphml"
+    GEXF = "gexf"
+    JSON = "json"
+
+
+class PaperProperties(str, Enum):
+    NODE_ID = "node_id"
+    LABEL = "label"
+    TITLE = "title"
+    ABSTRACT = "abstract"
+    YEAR = "year"
+    DOI = "doi"
+    ARXIV_ID = "arxiv_id"
+    OPENALEX_ID = "openalex_id"
+    URL = "url"
+    PDF_URL = "pdf_url"
+    CITATION_COUNT = "citation_count"
+    REFERENCE_COUNT = "reference_count"
+    PUBLICATION_DATE = "publication_date"
+    UPDATED_AT = "updated_at"
+    SOURCE = "source"
+    SUMMARY = "summary"
+
+
+class VenueProperties(str, Enum):
+    NODE_ID = "node_id"
+    NAME = "name"
+    TYPE = "type"
+    LABEL = "label"
+
+
+class AuthorProperties(str, Enum):
+    NODE_ID = "node_id"
+    LABEL = "label"
+    NAME = "name"
+    NORMALIZED_NAME = "normalized_name"
+
 # ============================================================================
 # Node Labels for Semantic Entities
 # ============================================================================
@@ -91,4 +148,34 @@ RELATION_TYPES: frozenset[str] = frozenset(
         MAKES_CLAIM,
     ]
 )
-"""All available relationship types in the knowledge graph."""
+
+# ============================================================================
+# Paper Graph Collections
+# ============================================================================
+
+PLACEHOLDER_PROPERTY = "placeholder"
+
+SUPPORTED_NODE_LABELS = {
+    NodeLabel.PAPER,
+    NodeLabel.AUTHOR,
+    NodeLabel.VENUE,
+}
+
+SUPPORTED_RELATIONSHIPS = {
+    RelationshipType.AUTHORED,
+    RelationshipType.CITES,
+    RelationshipType.PUBLISHED_IN,
+}
+
+
+class EdgeProperties(str, Enum):
+    RELATION = "relation"
+    WEIGHT = "weight"
+    KEY = "key"
+
+
+DEFAULT_EDGE_WEIGHT = 1.0
+
+PAPER_PREFIX = "paper"
+AUTHOR_PREFIX = "author"
+VENUE_PREFIX = "venue"

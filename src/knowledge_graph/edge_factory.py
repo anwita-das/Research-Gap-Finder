@@ -12,9 +12,11 @@ import networkx as nx
 from src.knowledge_graph.schema import (
     ADDRESSES_TASK,
     BELONGS_TO_FIELD,
+    DEFAULT_EDGE_WEIGHT,
     EVALUATED_BY,
     HAS_KEYWORD,
     MAKES_CLAIM,
+    RelationshipType,
     USES_ALGORITHM,
     USES_DATASET,
     USES_METHOD,
@@ -72,7 +74,8 @@ class EdgeFactory:
         """
         return {
             "relation": relation,
-            "weight": 1.0,
+            "weight": DEFAULT_EDGE_WEIGHT,
+            "key": relation,
         }
 
     def _add_edge(
@@ -109,11 +112,12 @@ class EdgeFactory:
         # Create edge attributes
         attrs = self._create_edge_attrs(relation)
 
-        # Add edge to graph
+        edge_key = attrs.pop("key")
+
         self.graph.add_edge(
             paper_id,
             semantic_node_id,
-            key=relation,
+            key=edge_key,
             **attrs,
         )
 
@@ -368,3 +372,34 @@ class EdgeFactory:
             Number of edges.
         """
         return self.graph.out_degree(paper_id)
+    
+    # =====================================================================
+    # Paper Graph Edge Helpers
+    # =====================================================================
+
+    @staticmethod
+    def create_authored_edge() -> dict[str, object]:
+        """Return attributes for an AUTHORED edge."""
+        return {
+            "relation": RelationshipType.AUTHORED.value,
+            "weight": DEFAULT_EDGE_WEIGHT,
+            "key": RelationshipType.AUTHORED.value,
+        }
+
+    @staticmethod
+    def create_cites_edge() -> dict[str, object]:
+        """Return attributes for a CITES edge."""
+        return {
+            "relation": RelationshipType.CITES.value,
+            "weight": DEFAULT_EDGE_WEIGHT,
+            "key": RelationshipType.CITES.value,
+        }
+
+    @staticmethod
+    def create_published_in_edge() -> dict[str, object]:
+        """Return attributes for a PUBLISHED_IN edge."""
+        return {
+            "relation": RelationshipType.PUBLISHED_IN.value,
+            "weight": DEFAULT_EDGE_WEIGHT,
+            "key": RelationshipType.PUBLISHED_IN.value,
+        }

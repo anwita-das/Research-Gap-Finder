@@ -6,7 +6,14 @@ and ID generation for all semantic entity types.
 """
 
 import hashlib
-from typing import Any, TypedDict
+from typing import Any, TypedDict, Dict
+
+from src.knowledge_graph.graph_utils import (
+    generate_author_id,
+    generate_paper_id,
+    generate_venue_id,
+    normalize_name,
+)
 
 from src.knowledge_graph.schema import (
     ALGORITHM,
@@ -18,6 +25,11 @@ from src.knowledge_graph.schema import (
     METRIC,
     MODEL,
     TASK,
+    NodeLabel,
+    PaperProperties,
+    AuthorProperties,
+    VenueProperties,
+    PLACEHOLDER_PROPERTY,
 )
 
 
@@ -280,3 +292,71 @@ class NodeFactory:
             )
 
         return entity_creators[entity_type](name, normalized_name)
+    
+    @staticmethod
+    def create_paper_node(paper_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a Paper node."""
+
+        paper_id = paper_dict.get("paper_id")
+
+        if not paper_id:
+            raise ValueError("paper_dict must include a paper_id")
+
+        metadata = paper_dict.get("metadata", {})
+
+        return {
+            PaperProperties.NODE_ID.value: generate_paper_id(str(paper_id)),
+            PaperProperties.LABEL.value: NodeLabel.PAPER.value,
+            PaperProperties.TITLE.value: paper_dict.get("title", ""),
+            PaperProperties.ABSTRACT.value: paper_dict.get("abstract", ""),
+            PaperProperties.YEAR.value: paper_dict.get("year"),
+            PaperProperties.DOI.value: paper_dict.get("doi", ""),
+            PaperProperties.ARXIV_ID.value: paper_dict.get("arxiv_id", ""),
+            PaperProperties.OPENALEX_ID.value: paper_dict.get("openalex_id", ""),
+            PaperProperties.URL.value: paper_dict.get("url", ""),
+            PaperProperties.PDF_URL.value: paper_dict.get("pdf_url", ""),
+            PaperProperties.CITATION_COUNT.value: metadata.get("citation_count", 0),
+            PaperProperties.REFERENCE_COUNT.value: metadata.get("reference_count", 0),
+            PaperProperties.PUBLICATION_DATE.value: metadata.get("publication_date", ""),
+            PaperProperties.UPDATED_AT.value: metadata.get("updated_at", ""),
+            PaperProperties.SOURCE.value: paper_dict.get("source", []),
+            PaperProperties.SUMMARY.value: paper_dict.get("summary", ""),
+        }
+
+    @staticmethod
+    def create_placeholder_paper_node(paper_id: str) -> Dict[str, Any]:
+        """Create a placeholder Paper node."""
+
+        return {
+            PaperProperties.NODE_ID.value: generate_paper_id(str(paper_id)),
+            PaperProperties.LABEL.value: NodeLabel.PAPER.value,
+            PaperProperties.TITLE.value: "",
+            PLACEHOLDER_PROPERTY: True,
+        }
+
+    @staticmethod
+    def create_author_node(name: str) -> Dict[str, Any]:
+        """Create an Author node."""
+
+        normalized_name = normalize_name(name)
+
+        return {
+            AuthorProperties.NODE_ID.value: generate_author_id(name),
+            AuthorProperties.LABEL.value: NodeLabel.AUTHOR.value,
+            AuthorProperties.NAME.value: name,
+            AuthorProperties.NORMALIZED_NAME.value: normalized_name,
+        }
+
+    @staticmethod
+    def create_venue_node(
+        name: str,
+        venue_type: str = "",
+    ) -> Dict[str, Any]:
+        """Create a Venue node."""
+
+        return {
+            VenueProperties.NODE_ID.value: generate_venue_id(name),
+            VenueProperties.LABEL.value: NodeLabel.VENUE.value,
+            VenueProperties.NAME.value: name,
+            VenueProperties.TYPE.value: venue_type,
+        }

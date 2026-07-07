@@ -5,13 +5,14 @@ Manages graph construction, entity deduplication, and node management
 using networkx.MultiDiGraph as the underlying data structure.
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 
 import networkx as nx
 
 from src.knowledge_graph.edge_factory import EdgeFactory
 from src.knowledge_graph.entity_resolver import EntityResolver
 from src.knowledge_graph.node_factory import NodeFactory
+from src.knowledge_graph.graph_utils import generate_paper_id
 from src.knowledge_graph.schema import (
     ALGORITHM,
     CLAIM,
@@ -22,6 +23,7 @@ from src.knowledge_graph.schema import (
     METRIC,
     MODEL,
     TASK,
+    PLACEHOLDER_PROPERTY,
 )
 
 
@@ -50,8 +52,143 @@ class GraphBuilder:
     def __init__(self) -> None:
         """Initialize the graph builder with empty graph and resolver."""
         self.graph: nx.MultiDiGraph = nx.MultiDiGraph()
+
         self._resolver: EntityResolver = EntityResolver()
-        self._edge_factory = EdgeFactory(self.graph)
+
+        self.node_factory = NodeFactory()
+
+        self.edge_factory = EdgeFactory(self.graph)
+
+        self.placeholder_papers: set[str] = set()
+
+    def add_paper(self, paper_dict: Dict[str, Any]) -> None:
+        """Add a paper and its related author, venue, and citation data."""
+        paper_id = str(paper_dict.get("paper_id", "")).strip()
+        if not paper_id:
+            raise ValueError("paper_dict must include a paper_id")
+        
+        paper_node_id = self._paper_node_id(paper_id)
+        self._ensure_paper_node(paper_node_id, paper_dict)
+
+        for author_name in paper_dict.get("authors", []):
+            self.add_authorship(paper_id, author_name)
+
+        venue_name = paper_dict.get("venue")
+        venue_type = paper_dict.get("venue_type", "")
+
+
+        if venue_name:
+            self.add_publication(
+                paper_id,
+                venue_name,
+                venue_type,
+            )
+        for cited_id in paper_dict.get("references", []):
+            if cited_id:
+                self.add_citation(paper_id, str(cited_id))
+
+    def add_author(self, name: str) -> str:
+        """Add an author node if missing and return its node identifier."""
+        author_node_id = self._resolver.get_or_create_author(name)
+        if not self.graph.has_node(author_node_id):
+            attributes = self.node_factory.create_author_node(name)
+            self.graph.add_node(author_node_id, **attributes)
+        return author_node_id
+    
+    def add_venue(self, name: str, venue_type: str = "") -> str:
+        """Add a venue node if missing and return its node
+        identifier."""
+        venue_node_id = self._resolver.get_or_create_venue(name)
+        if not self.graph.has_node(venue_node_id):
+            attributes = self.node_factory.create_venue_node(name,venue_type)
+            self.graph.add_node(venue_node_id, **attributes)
+        return venue_node_id
+    
+    def add_authorship(self, paper_id: str, author_name: str) -> None:
+        """Connect an author to a paper with an AUTHORED edge."""
+        author_node_id = self.add_author(author_name)
+        paper_node_id = self._ensure_paper_placeholder(paper_id)
+        edge_attrs = self.edge_factory.create_authored_edge()
+
+        if not self.graph.has_edge(
+            author_node_id,
+            paper_node_id,
+        ):
+            self.graph.add_edge(
+                author_node_id,
+                paper_node_id,
+                key=edge_attrs["key"],
+                **edge_attrs,
+            )
+
+    def add_citation(self, citing_paper_id: str, cited_paper_id: str)-> None:
+        """Connect a citing paper to a cited paper with a CITES edge."""
+
+        citing_node_id = self._ensure_paper_placeholder(citing_paper_id)
+        cited_node_id = self._ensure_paper_placeholder(cited_paper_id)
+        edge_attrs = self.edge_factory.create_cites_edge()
+
+        if not self.graph.has_edge(
+            citing_node_id,
+            cited_node_id,
+        ):
+            self.graph.add_edge(
+                citing_node_id,
+                cited_node_id,
+                key=edge_attrs["key"],
+                **edge_attrs,
+            )
+
+    def add_publication(
+        self,
+        paper_id: str,
+        venue_name: str,
+        venue_type: str = "",
+    ) -> None:
+        """Connect a paper to a venue with a PUBLISHED_IN edge."""
+
+        paper_node_id = self._ensure_paper_placeholder(paper_id)
+        venue_node_id = self.add_venue(venue_name, venue_type,)
+        edge_attrs = self.edge_factory.create_published_in_edge()
+
+        if not self.graph.has_edge(
+            paper_node_id,
+            venue_node_id,
+        ):
+            self.graph.add_edge(
+                paper_node_id,
+                venue_node_id,
+                key=edge_attrs["key"],
+                **edge_attrs,
+            )
+
+    def build_graph(self) -> nx.MultiDiGraph:
+        """Return the constructed graph."""
+        return self.graph
+    
+    def _paper_node_id(self, paper_id: str) -> str:
+        return generate_paper_id(paper_id)
+    
+    def _ensure_paper_node(self, paper_node_id: str, paper_dict:
+        Dict[str, Any]) -> None:
+        if self.graph.has_node(paper_node_id):
+            if self.graph.nodes[paper_node_id].get(PLACEHOLDER_PROPERTY):
+                attributes = self.node_factory.create_paper_node(paper_dict)
+                self.graph.nodes[paper_node_id].update(attributes)
+                
+                self.graph.nodes[paper_node_id].pop(PLACEHOLDER_PROPERTY, None)
+                self.placeholder_papers.discard(paper_node_id)
+            return
+        attributes = self.node_factory.create_paper_node(paper_dict)
+        self.graph.add_node(paper_node_id, **attributes)
+
+    def _ensure_paper_placeholder(self, paper_id: str) -> str:
+        paper_node_id = self._paper_node_id(str(paper_id))
+        if not self.graph.has_node(paper_node_id):
+            placeholder_attrs = self.node_factory.create_placeholder_paper_node(paper_id)
+            self.graph.add_node(paper_node_id, **placeholder_attrs)
+            self.placeholder_papers.add(paper_node_id)
+        return paper_node_id
 
     def _add_entity_node(
         self,
@@ -92,7 +229,7 @@ class GraphBuilder:
             return existing_node
 
         # Step 4: Create new node
-        node = NodeFactory.create_entity(entity_type, name, normalized)
+        node = self.node_factory.create_entity(entity_type, name, normalized)
         node_id = node["node_id"]
 
         # Step 5: Insert into graph with full node data
@@ -250,7 +387,7 @@ class GraphBuilder:
             return existing_node
 
         # Create claim node using NodeFactory
-        node = NodeFactory.create_claim(text, normalized_text)
+        node = self.node_factory.create_claim(text, normalized_text)
         node_id = node["node_id"]
 
         # Add to graph with full claim data
