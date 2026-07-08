@@ -70,7 +70,8 @@ class GraphBuilder:
         paper_node_id = self._paper_node_id(paper_id)
         self._ensure_paper_node(paper_node_id, paper_dict)
 
-        for author_name in paper_dict.get("authors", []):
+        for author_name in paper_dict.get("authors") or []:
+            
             self.add_authorship(paper_id, author_name)
 
         venue_name = paper_dict.get("venue")
@@ -83,7 +84,7 @@ class GraphBuilder:
                 venue_name,
                 venue_type,
             )
-        for cited_id in paper_dict.get("references", []):
+        for cited_id in paper_dict.get("references") or []:
             if cited_id:
                 self.add_citation(paper_id, str(cited_id))
 
@@ -109,18 +110,22 @@ class GraphBuilder:
         author_node_id = self.add_author(author_name)
         paper_node_id = self._ensure_paper_placeholder(paper_id)
         edge_attrs = self.edge_factory.create_authored_edge()
-        edge_key = edge_attrs.pop("key")
+        edge_key = edge_attrs["relation"]
 
-        if not self.graph.has_edge(
+       
+        if self.graph.has_edge(
             author_node_id,
             paper_node_id,
+            key=edge_key,
         ):
-            self.graph.add_edge(
-                author_node_id,
-                paper_node_id,
-                key=edge_key,
-                **edge_attrs,
-            )
+            return
+
+        self.graph.add_edge(
+            author_node_id,
+            paper_node_id,
+            key=edge_key,
+            **edge_attrs,
+        )
 
     def add_citation(self, citing_paper_id: str, cited_paper_id: str)-> None:
         """Connect a citing paper to a cited paper with a CITES edge."""
@@ -128,18 +133,21 @@ class GraphBuilder:
         citing_node_id = self._ensure_paper_placeholder(citing_paper_id)
         cited_node_id = self._ensure_paper_placeholder(cited_paper_id)
         edge_attrs = self.edge_factory.create_cites_edge()
-        edge_key = edge_attrs.pop("key")
+        edge_key = edge_attrs["relation"]
 
-        if not self.graph.has_edge(
+        if self.graph.has_edge(
             citing_node_id,
             cited_node_id,
+            key=edge_key,
         ):
-            self.graph.add_edge(
-                citing_node_id,
-                cited_node_id,
-                key=edge_key,
-                **edge_attrs,
-            )
+            return
+
+        self.graph.add_edge(
+            citing_node_id,
+            cited_node_id,
+            key=edge_key,
+            **edge_attrs,
+        )
 
     def add_publication(
         self,
@@ -152,18 +160,21 @@ class GraphBuilder:
         paper_node_id = self._ensure_paper_placeholder(paper_id)
         venue_node_id = self.add_venue(venue_name, venue_type,)
         edge_attrs = self.edge_factory.create_published_in_edge()
-        edge_key = edge_attrs.pop("key")
+        edge_key = edge_attrs["relation"]
 
-        if not self.graph.has_edge(
+        if self.graph.has_edge(
             paper_node_id,
             venue_node_id,
+            key=edge_key,
         ):
-            self.graph.add_edge(
-                paper_node_id,
-                venue_node_id,
-                key=edge_key,
-                **edge_attrs,
-            )
+            return
+
+        self.graph.add_edge(
+            paper_node_id,
+            venue_node_id,
+            key=edge_key,
+            **edge_attrs,
+        )
 
     def build_graph(self) -> nx.MultiDiGraph:
         """Return the constructed graph."""
@@ -491,9 +502,8 @@ class GraphBuilder:
         # Helper to process entity list for a specific entity type
         def process_entity_type(
             entity_list: Any,
-            entity_type: str,
-            add_method,
-            connect_method,
+            add_entity,
+            connect_entity,
             summary_key: str,
         ) -> None:
             """Process a list of entities for a specific entity type."""
@@ -524,9 +534,9 @@ class GraphBuilder:
 
                 seen.add(normalized_value)
 
-                node_id = add_method(entity_value)
+                node_id = add_entity(entity_value)
 
-                edge = connect_method(paper_node_id, node_id)
+                edge = connect_entity(paper_node_id, node_id)
 
                 if edge is not None:
                     summary[summary_key] += 1
@@ -535,7 +545,6 @@ class GraphBuilder:
         # Process each entity type
         process_entity_type(
             extracted_entities.get("methods"),
-            METHOD,
             self.add_method,
             self.edge_factory.connect_method,
             "methods_added",
@@ -543,7 +552,7 @@ class GraphBuilder:
 
         process_entity_type(
             extracted_entities.get("models"),
-            MODEL,
+        
             self.add_model,
             self.edge_factory.connect_model,
             "models_added",
@@ -551,7 +560,6 @@ class GraphBuilder:
 
         process_entity_type(
             extracted_entities.get("algorithms"),
-            ALGORITHM,
             self.add_algorithm,
             self.edge_factory.connect_algorithm,
             "algorithms_added",
@@ -559,7 +567,6 @@ class GraphBuilder:
 
         process_entity_type(
             extracted_entities.get("datasets"),
-            DATASET,
             self.add_dataset,
             self.edge_factory.connect_dataset,
             "datasets_added",
@@ -567,7 +574,6 @@ class GraphBuilder:
 
         process_entity_type(
             extracted_entities.get("tasks"),
-            TASK,
             self.add_task,
             self.edge_factory.connect_task,
             "tasks_added",
@@ -575,7 +581,6 @@ class GraphBuilder:
 
         process_entity_type(
             extracted_entities.get("metrics"),
-            METRIC,
             self.add_metric,
             self.edge_factory.connect_metric,
             "metrics_added",
@@ -583,7 +588,6 @@ class GraphBuilder:
 
         process_entity_type(
             extracted_entities.get("keywords"),
-            KEYWORD,
             self.add_keyword,
             self.edge_factory.connect_keyword,
             "keywords_added",
@@ -591,7 +595,6 @@ class GraphBuilder:
 
         process_entity_type(
             extracted_entities.get("fields"),
-            FIELD,
             self.add_field,
             self.edge_factory.connect_field,
             "fields_added",
@@ -600,7 +603,6 @@ class GraphBuilder:
         # Process claims separately (different signature)
         process_entity_type(
             extracted_entities.get("claims"),
-            CLAIM,
             self.add_claim,
             self.edge_factory.connect_claim,
             "claims_added",

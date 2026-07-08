@@ -75,10 +75,10 @@ class GraphValidator:
             raise GraphValidationError(
                 f"Edge {u}->{v} (key={key}) has non-numeric weight '{weight}'."
             )
-        if "key" not in attrs:
+        if key != relation:
             raise GraphValidationError(
-                f"Edge {u}->{v} (key={key}) missing required attribute 'key'."
-        )
+                f"Edge {u}->{v} has mismatched key '{key}' and relation '{relation}'."
+            )
 
     def validate_graph(self, graph: nx.MultiDiGraph) -> None:
         """Validate the overall graph structure and attributes."""
@@ -173,5 +173,12 @@ class GraphValidator:
             if not graph.has_node(u):
                 raise GraphValidationError(f"Edge source node '{u}' does not exist.")
             if not graph.has_node(v):
-                raise GraphValidationError(f"Edge target node '{v}' does not exist.")
-        self.validate_edge(u, v, key, attrs)
+                raise GraphValidationError(
+                    f"Edge target node '{v}' does not exist."
+                )
+            self.validate_edge(
+                    u,
+                    v,
+                    key,
+                    attrs,
+                )

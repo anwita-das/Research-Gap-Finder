@@ -75,7 +75,6 @@ class EdgeFactory:
         return {
             "relation": relation,
             "weight": DEFAULT_EDGE_WEIGHT,
-            "key": relation,
         }
 
     def _add_edge(
@@ -112,7 +111,7 @@ class EdgeFactory:
         # Create edge attributes
         attrs = self._create_edge_attrs(relation)
 
-        edge_key = attrs.pop("key")
+        edge_key = relation
 
         self.graph.add_edge(
             paper_id,
@@ -377,29 +376,21 @@ class EdgeFactory:
     # Paper Graph Edge Helpers
     # =====================================================================
 
-    @staticmethod
-    def create_authored_edge() -> dict[str, object]:
-        """Return attributes for an AUTHORED edge."""
-        return {
-            "relation": RelationshipType.AUTHORED.value,
-            "weight": DEFAULT_EDGE_WEIGHT,
-            "key": RelationshipType.AUTHORED.value,
-        }
 
     @staticmethod
-    def create_cites_edge() -> dict[str, object]:
-        """Return attributes for a CITES edge."""
-        return {
-            "relation": RelationshipType.CITES.value,
-            "weight": DEFAULT_EDGE_WEIGHT,
-            "key": RelationshipType.CITES.value,
-        }
+    def create_authored_edge():
+        return EdgeFactory._create_edge_attrs(
+            RelationshipType.AUTHORED.value
+        )
 
     @staticmethod
-    def create_published_in_edge() -> dict[str, object]:
-        """Return attributes for a PUBLISHED_IN edge."""
-        return {
-            "relation": RelationshipType.PUBLISHED_IN.value,
-            "weight": DEFAULT_EDGE_WEIGHT,
-            "key": RelationshipType.PUBLISHED_IN.value,
-        }
+    def create_cites_edge():
+        return EdgeFactory._create_edge_attrs(
+            RelationshipType.CITES.value
+        )
+
+    @staticmethod
+    def create_published_in_edge():
+        return EdgeFactory._create_edge_attrs(
+            RelationshipType.PUBLISHED_IN.value
+        )     

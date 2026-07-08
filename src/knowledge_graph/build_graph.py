@@ -167,5 +167,110 @@ def _add_entities_to_builder(builder: GraphBuilder, entity_file: Path) -> None:
         logger.warning("Could not attach semantic entities for paper %s: %s", paper_id, exc)
 
 
+def main() -> None:
+    """Build the knowledge graph and print a summary for debugging."""
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s: %(message)s",
+    )
+
+    print("=" * 70)
+    print("Building Knowledge Graph...")
+    print("=" * 70)
+
+    output_path = build_knowledge_graph()
+
+    print("\nGraph successfully exported to:")
+    print(output_path)
+
+    # ----------------------------------------------------
+    # Reload graph so we can inspect it
+    # ----------------------------------------------------
+    builder = GraphBuilder()
+
+    papers = _load_papers(
+        Path(__file__).resolve().parents[2]
+        / "data"
+        / "processed"
+        / "merged"
+    )
+
+    for paper in papers:
+        _add_paper_to_builder(builder, paper)
+
+    entity_files = _load_entity_files(
+        Path(__file__).resolve().parents[2]
+        / "data"
+        / "processed"
+        / "entities"
+    )
+
+    for entity_file in entity_files:
+        _add_entities_to_builder(builder, entity_file)
+
+    graph = builder.build_graph()
+
+    print("\n" + "=" * 70)
+    print("GRAPH SUMMARY")
+    print("=" * 70)
+
+    print(f"Total Nodes : {graph.number_of_nodes()}")
+    print(f"Total Edges : {graph.number_of_edges()}")
+
+    # ----------------------------------------------------
+    # Count node types
+    # ----------------------------------------------------
+    counts = {}
+
+    for _, attrs in graph.nodes(data=True):
+        label = attrs.get("label", "UNKNOWN")
+        counts[label] = counts.get(label, 0) + 1
+
+    print("\nNode Counts")
+
+    for label in sorted(counts):
+        print(f"  {label:<15} {counts[label]}")
+
+    # ----------------------------------------------------
+    # Print sample nodes
+    # ----------------------------------------------------
+    print("\nSample Nodes (first 10):")
+
+    for i, (node_id, attrs) in enumerate(graph.nodes(data=True)):
+        if i == 10:
+            break
+
+        print(f"\n{node_id}")
+        print(attrs)
+
+    # ----------------------------------------------------
+    # Print sample edges
+    # ----------------------------------------------------
+    print("\nSample Edges (first 20):")
+
+    for i, (u, v, key, attrs) in enumerate(
+        graph.edges(keys=True, data=True)
+    ):
+        if i == 20:
+            break
+
+        print(
+            f"{u} --[{attrs.get('relation', key)}]--> {v}"
+        )
+
+    # ----------------------------------------------------
+    # Validation
+    # ----------------------------------------------------
+    validator = GraphValidator()
+
+    try:
+        validator.validate_graph(graph)
+        print("\nGraph Validation: PASSED")
+    except GraphValidationError as exc:
+        print("\nGraph Validation: FAILED")
+        print(exc)
+
+
 if __name__ == "__main__":
-    build_knowledge_graph()
+    main()
