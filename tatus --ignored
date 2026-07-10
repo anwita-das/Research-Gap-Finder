@@ -1,0 +1,10 @@
+[33m084c475[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/semantic-search[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m Implement semantic search with graph-enriched retrieval
+[33m437b2c3[m phase 3 visualization
+[33m1761ae3[m phase 3 complete
+[33m4850c20[m phase 3 merging
+[33mfe20c6b[m phase 3 member 2
+[33maabe3c6[m[33m ([m[1;31morigin/feature/method-model-extraction[m[33m, [m[1;32mfeature/method-model-extraction[m[33m)[m Stop tracking data/processed directory
+[33mc5ff179[m integration of phase 2
+[33m862dda0[m Merge remote-tracking branch 'origin/feature/entity-extraction' into feature/method-model-extraction
+[33m5ca9f81[m[33m ([m[1;31morigin/feature/entity-extraction[m[33m)[m replaced semantic scholar with openalex
+[33m973f2d9[m Implement method model algorithm extraction pipeline
