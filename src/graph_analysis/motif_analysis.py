@@ -14,6 +14,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Optional, Union
 
+import attrs
 import networkx as nx
 
 from src.knowledge_graph.graph_loader import load_existing_graph
@@ -38,15 +39,16 @@ def load_graph(
 
 
 def _is_paper_node(node_id: str, graph: nx.Graph) -> bool:
-    attrs = graph.nodes.get(node_id, {})
-    return str(attrs.get("type", "")).lower() == "paper" or str(attrs.get("label", "")).lower() == "paper"
-
+    attrs = graph.nodes[node_id]
+    return str(attrs.get("label", "")).lower() == "paper"
 
 def _is_entity_node(node_id: str, graph: nx.Graph) -> bool:
-    attrs = graph.nodes.get(node_id, {})
-    node_type = str(attrs.get("type", "") or attrs.get("label", "")).lower()
-    return node_type in {"method", "dataset", "task", "keyword", "field", "model", "metric", "claim"}
-
+    attrs = graph.nodes[node_id]
+    node_type = str(attrs.get("label", "")).lower()
+    return node_type in {
+        "method", "dataset", "task", "keyword",
+        "model", "metric", "claim", "algorithm"
+    }
 
 def detect_motifs(graph: nx.Graph) -> dict[str, Any]:
     """Detect recurring motif support on the provided graph.
@@ -86,21 +88,39 @@ def detect_motifs(graph: nx.Graph) -> dict[str, Any]:
     paper_entity_paper = 0
     semantic_motifs = 0
 
-    for source in graph.nodes():
-        for target in graph.successors(source) if hasattr(graph, "successors") else []:
-            if source == target:
-                continue
-            for mid in graph.successors(target) if hasattr(graph, "successors") else []:
-                if mid == source:
-                    continue
-                two_hop_paths += 1
-                if _is_paper_node(source, graph) and _is_paper_node(mid, graph):
-                    if _is_entity_node(target, graph):
-                        paper_entity_paper += 1
-                    elif target.startswith("author:"):
-                        paper_author_paper += 1
-                if _is_paper_node(source, graph) and _is_entity_node(target, graph):
-                    semantic_motifs += 1
+    for middle in graph.nodes():
+
+        connected_papers = []
+
+        # papers pointing to middle
+        for node in graph.predecessors(middle):
+            if _is_paper_node(node, graph):
+                connected_papers.append(node)
+
+        # papers pointed by middle
+        for node in graph.successors(middle):
+            if _is_paper_node(node, graph):
+                connected_papers.append(node)
+
+
+        connected_papers = list(set(connected_papers))
+
+
+        # two papers sharing the same middle node
+        if len(connected_papers) >= 2:
+
+            pairs = len(connected_papers) * (len(connected_papers)-1) // 2
+
+            two_hop_paths += pairs
+
+
+            if str(graph.nodes[middle].get("label","")).lower() == "author":
+                paper_author_paper += pairs
+
+
+            if _is_entity_node(middle, graph):
+                paper_entity_paper += pairs
+                semantic_motifs += pairs
 
     motif_counts["two_hop_paths"] = two_hop_paths
     motif_counts["paper_author_paper"] = paper_author_paper
@@ -120,69 +140,91 @@ def generate_motif_candidates(
     output_path: Optional[Union[str, Path]] = None,
     max_candidates: int = 200,
 ) -> list[dict[str, Any]]:
-    """Generate candidate missing edges from local motif patterns."""
+    """Generate candidate missing edges from shared entity motifs."""
+
     if graph is None:
         return []
 
-    candidates: list[dict[str, Any]] = []
-    motif_support: defaultdict[tuple[str, str, str], int] = defaultdict(int)
+    candidates = []
+    seen = set()
 
-    for source in graph.nodes():
-        successors = list(graph.successors(source)) if hasattr(graph, "successors") else []
-        for target in successors:
-            if source == target:
-                continue
-            edge_attrs = graph.get_edge_data(source, target)
-            if edge_attrs is None:
-                continue
-            for _, attrs in edge_attrs.items() if isinstance(edge_attrs, dict) else []:
-                relation = attrs.get("relation") or attrs.get("type") or "RELATED"
-                if not relation:
-                    continue
-                if not _is_paper_node(source, graph) and not _is_entity_node(source, graph):
-                    continue
-                if not _is_paper_node(target, graph) and not _is_entity_node(target, graph):
-                    continue
-                for other in list(graph.successors(target)) if hasattr(graph, "successors") else []:
-                    if other == source or other == target:
-                        continue
-                    if not graph.has_edge(source, other):
-                        candidate_relation = relation
-                        # Prefer a semantic relation if the intermediate node is entity-like.
-                        if _is_entity_node(target, graph):
-                            candidate_relation = "RELATED_TO"
-                        key = _candidate_key(source, other, candidate_relation)
-                        motif_support[key] += 1
-                        candidates.append(
-                            {
-                                "gap_id": f"gap_{len(candidates) + 1:04d}",
-                                "source_node": source,
-                                "target_node": other,
-                                "relation": candidate_relation,
-                                "motif_score": round(min(1.0, motif_support[key] / 8.0), 4),
-                                "graphsage_score": round(min(1.0, motif_support[key] / 16.0), 4),
-                                "confidence": round(min(1.0, motif_support[key] / 12.0), 4),
-                                "status": "candidate",
-                            }
-                        )
+    entity_relations = {
+        "USES_MODEL",
+        "USES_DATASET",
+        "USES_METHOD",
+        "USES_ALGORITHM",
+        "ADDRESSES_TASK",
+        "EVALUATED_BY",
+        "HAS_KEYWORD"
+    }
 
-    # Deduplicate and keep a stable, explainable ordering.
-    unique_candidates: list[dict[str, Any]] = []
-    unique_keys: set[tuple[str, str, str]] = set()
-    for candidate in candidates:
-        key = _candidate_key(candidate["source_node"], candidate["target_node"], candidate["relation"])
-        if key in unique_keys:
+    for entity in graph.nodes():
+
+        if not _is_entity_node(entity, graph):
             continue
-        unique_keys.add(key)
-        unique_candidates.append(candidate)
 
-    unique_candidates.sort(key=lambda item: (-float(item["motif_score"]), item["source_node"], item["target_node"]))
-    unique_candidates = unique_candidates[:max_candidates]
+        papers = []
 
-    if output_path is not None:
-        save_motif_candidates(unique_candidates, output_path)
+        # Find papers connected to this entity
+        for paper in graph.predecessors(entity):
 
-    return unique_candidates
+            if _is_paper_node(paper, graph):
+                papers.append(paper)
+
+
+        for paper in graph.successors(entity):
+
+            if _is_paper_node(paper, graph):
+                papers.append(paper)
+
+
+        # Need at least two papers sharing entity
+        if len(papers) < 2:
+            continue
+
+
+        # Generate possible missing paper-paper relationships
+        for i in range(len(papers)):
+
+            for j in range(i + 1, len(papers)):
+
+                p1 = papers[i]
+                p2 = papers[j]
+
+                if graph.has_edge(p1, p2) or graph.has_edge(p2, p1):
+                    continue
+
+
+                key = (p1, p2, "RELATED_TO")
+
+                if key in seen:
+                    continue
+
+                seen.add(key)
+
+                candidates.append(
+                    {
+                        "gap_id": f"gap_{len(candidates)+1:04d}",
+                        "source_node": p1,
+                        "target_node": p2,
+                        "relation": f"SHARES_{graph.nodes[entity].get('label').upper()}",
+                        "shared_entity": entity,
+                        "motif_score": min(1.0, len(papers)/10),
+                        "graphsage_score": 0.0,
+                        "confidence": 0.8,
+                        "status": "candidate"
+                    }
+                )
+
+
+    candidates = candidates[:max_candidates]
+
+
+    if output_path:
+        save_motif_candidates(candidates, output_path)
+
+
+    return candidates
 
 
 def save_motif_candidates(candidates: list[dict[str, Any]], output_path: Union[str, Path]) -> Path:
@@ -204,6 +246,15 @@ def main() -> None:
         print(node, "->", attrs)
         if i >= 10:
             break
+
+    print("\n===== EDGE RELATIONS =====")
+
+    relations = set()
+
+    for _, _, data in graph.edges(data=True):
+        relations.add(data.get("relation"))
+
+    print(relations)
     motifs = detect_motifs(graph)
     candidates = generate_motif_candidates(graph, output_path="data/processed/motif_candidates.json")
 
