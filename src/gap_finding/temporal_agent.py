@@ -16,9 +16,9 @@ from __future__ import annotations
 from collections import Counter
 from typing import Dict, List
 
-from src.gap_enrichment.graph_loader import GraphLoader
-from src.gap_enrichment.paper_loader import PaperLoader
-from src.gap_enrichment.llm_helper import LLMHelper
+from src.gap_finding.graph_loader import GraphLoader
+from src.gap_finding.paper_loader import PaperLoader
+from src.gap_finding.llm_helper import LLMHelper
 
 
 class TemporalAnalysisAgent:

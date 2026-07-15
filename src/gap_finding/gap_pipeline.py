@@ -35,17 +35,17 @@ import json
 from pathlib import Path
 
 
-from src.gap_enrichment.candidate_loader import CandidateLoader
-from src.gap_enrichment.paper_loader import PaperLoader
-from src.gap_enrichment.graph_loader import GraphLoader
+from src.gap_finding.candidate_loader import CandidateLoader
+from src.gap_finding.paper_loader import PaperLoader
+from src.gap_finding.graph_loader import GraphLoader
 
-from src.gap_enrichment.temporal_agent import TemporalAnalysisAgent
-from src.gap_enrichment.comparison_agent import ComparisonAgent
-from src.gap_enrichment.gap_detector_agent import GapDetector
-from src.gap_enrichment.enrichment_pipeline import GapEnrichmentPipeline as PaperEnrichmentPipeline
+from src.gap_finding.temporal_agent import TemporalAnalysisAgent
+from src.gap_finding.comparison_agent import ComparisonAgent
+from src.gap_finding.gap_detector_agent import GapDetector
+from src.gap_finding.enrichment_pipeline import GapEnrichmentPipeline as PaperEnrichmentPipeline
 
 
-class GapEnrichmentPipeline:
+class GapFindingPipeline:
 
 
     def __init__(
@@ -348,7 +348,7 @@ if __name__ == "__main__":
 
     print("\nPaper enrichment completed.\n")
 
-    pipeline = GapEnrichmentPipeline(
+    pipeline = GapFindingPipeline(
 
         candidate_file=
         "data/processed/final_gap_candidates.json",

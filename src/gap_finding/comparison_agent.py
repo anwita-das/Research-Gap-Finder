@@ -24,7 +24,7 @@ from __future__ import annotations
 import json
 from typing import List
 
-from src.gap_enrichment.llm_helper import LLMHelper
+from src.gap_finding.llm_helper import LLMHelper
 
 
 
@@ -313,7 +313,17 @@ Metrics:
 Limitations:
 {paper1.get("limitations")}
 
+Future Work:
+{paper1.get("future_work")}
 
+Key Contributions:
+{paper1.get("key_contributions")}
+
+Novelty Points:
+{paper1.get("novelty_points")}
+
+Experimental Results:
+{paper1.get("experimental_results")}
 
 Paper 2:
 
@@ -332,7 +342,17 @@ Metrics:
 Limitations:
 {paper2.get("limitations")}
 
+Future Work:
+{paper2.get("future_work")}
 
+Key Contributions:
+{paper2.get("key_contributions")}
+
+Novelty Points:
+{paper2.get("novelty_points")}
+
+Experimental Results:
+{paper2.get("experimental_results")}
 
 Existing overlap:
 

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 
-from src.gap_enrichment.llm_helper import LLMHelper
+from src.gap_finding.llm_helper import LLMHelper
 
 
 
@@ -155,16 +155,16 @@ Limitations:
 Future Work:
 {paper2.get("future_work")}
 Key Contributions:
-{paper1.get("key_contributions")}
+{paper2.get("key_contributions")}
 
 Novelty Points:
-{paper1.get("novelty_points")}
+{paper2.get("novelty_points")}
 
 Experimental Setup:
-{paper1.get("experimental_setup")}
+{paper2.get("experimental_setup")}
 
 Experimental Results:
-{paper1.get("experimental_results")}
+{paper2.get("experimental_results")}
 
 
 
