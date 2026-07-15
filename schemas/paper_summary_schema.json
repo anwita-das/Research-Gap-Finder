@@ -1,25 +1,46 @@
 {
-  "paper_id": "",
-  "title": "",
-  "year": 0,
-  "authors": [],
-  "abstract": "",
 
+  "paper_id": "",
+
+  "title": "",
+
+  "year": 0,
+
+  "authors": [],
+
+  "abstract": "",
+ 
   "methods": [],
+
   "models": [],
+
   "algorithms": [],
+
   "datasets": [],
+
   "tasks": [],
+
   "metrics": [],
+
   "claims": [],
+
   "keywords": [],
+
   "summary": "",
+ 
+  "experimental_results": [],
 
   "limitations": [],
+
   "future_work": [],
+
   "key_contributions": [],
+
   "novelty_points": [],
+
   "experimental_setup": "",
-  "implementation_details": [],
-  "paper_type": ""
+
+  "implementation_details": []
+
 }
+ 
