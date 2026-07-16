@@ -25,7 +25,7 @@ class SectionExtractor:
     def __init__(
         self,
         client: GroqClient | None = None,
-        chunk_size: int = 3500,
+        chunk_size: int = 8000,
     ):
 
         self.client = client or GroqClient()

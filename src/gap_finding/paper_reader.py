@@ -13,9 +13,7 @@ from .llm_parser import (
     parse_enrichment_response,
 )
 
-from src.Extraction.groq_client import (
-    GroqClient,
-)
+from .llm_helper import LLMHelper
 
 class PaperEnrichmentError(Exception):
     """Raised when a paper cannot be enriched."""
@@ -39,10 +37,10 @@ class PaperReader:
 
     def __init__(
         self,
-        client: GroqClient | None = None
+        client: LLMHelper | None = None
     ):
 
-        self.client = client or GroqClient()
+        self.client = client or LLMHelper()
 
     def enrich_paper(
         self,

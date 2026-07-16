@@ -390,22 +390,40 @@ Rules:
 
         try:
 
-            response = self.llm.generate(
-                prompt
-            )
+            print(f"Prompt length: {len(prompt)} characters")
 
+            response = self.llm.generate(prompt)
 
-            return json.loads(response)
+            print("\n" + "=" * 80)
+            print("RAW COMPARISON RESPONSE")
+            print("=" * 80)
+            print(repr(response))
+            print("=" * 80 + "\n")
 
+            # Remove markdown code fences if present
+            cleaned_response = response.strip()
 
+            if cleaned_response.startswith("```"):
+                cleaned_response = cleaned_response.replace("```json", "")
+                cleaned_response = cleaned_response.replace("```", "")
+                cleaned_response = cleaned_response.strip()
+
+            return json.loads(cleaned_response)
 
         except Exception as e:
 
 
-            print(
-                "LLM comparison failed:",
-                e
-            )
+            print("\nComparison Agent Error")
+            print(type(e).__name__)
+            print(e)
+
+            try:
+                print("\nRaw response was:")
+                print(repr(response))
+            except NameError:
+                print("No response received from LLM.")
+
+            print()
 
 
             return {

@@ -274,23 +274,46 @@ Return ONLY JSON:
 
         try:
 
-            response = self.llm.generate(
-                prompt
-            )
+            response = self.llm.generate(prompt)
 
+            print("\n" + "=" * 80)
+            print("RAW GAP RESPONSE")
+            print("=" * 80)
+            print(repr(response))
+            print("=" * 80 + "\n")
 
-            result = json.loads(
-                response
-            )
+            cleaned_response = response.strip()
+
+            if cleaned_response.startswith("```"):
+                cleaned_response = cleaned_response.replace("```json", "")
+                cleaned_response = cleaned_response.replace("```", "")
+                cleaned_response = cleaned_response.strip()
+
+            result = json.loads(cleaned_response)
 
 
         except Exception as e:
 
 
-            print(
-                "LLM gap detection failed:",
-                e
-            )
+            print("\nGap Detector Error")
+            print(type(e).__name__)
+            print(e)
+
+            try:
+                print("\nRaw response:")
+                print(repr(response))
+            except NameError:
+                print("No response received.")
+
+            print()
+
+            result = {
+                "gap_type": "unknown",
+                "title": "",
+                "description": "Gap detection failed.",
+                "supporting_evidence": [],
+                "confidence": 0.0
+            }
 
 
             result = {

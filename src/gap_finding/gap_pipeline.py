@@ -283,7 +283,6 @@ class GapFindingPipeline:
                     gap
                 )
 
-
             except Exception as e:
 
                 candidate_dict = (
@@ -340,11 +339,11 @@ if __name__ == "__main__":
     # Step 1: Build enriched papers
     # -------------------------------------
 
-    print("\nRunning Paper Enrichment Pipeline...\n")
+    # print("\nRunning Paper Enrichment Pipeline...\n")
 
-    enrichment = PaperEnrichmentPipeline()
+    # enrichment = PaperEnrichmentPipeline()
 
-    enrichment.run()
+    # enrichment.run()
 
     print("\nPaper enrichment completed.\n")
 
