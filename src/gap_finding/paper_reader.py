@@ -14,6 +14,8 @@ from .llm_parser import (
 )
 
 from .llm_helper import LLMHelper
+from .section_extractor import SectionExtractor
+
 
 class PaperEnrichmentError(Exception):
     """Raised when a paper cannot be enriched."""
@@ -112,8 +114,6 @@ if __name__ == "__main__":
     )
 
     reader = PaperReader()
-
-    from .section_extractor import SectionExtractor
 
     extractor = SectionExtractor()
 
