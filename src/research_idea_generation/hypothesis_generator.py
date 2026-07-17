@@ -216,6 +216,10 @@ class HypothesisGenerator:
 
     Your task is NOT to detect new gaps.
 
+    Your goal is to transform each validated research gap into a publishable research proposal.
+
+    A publishable proposal should introduce a concrete technical idea rather than merely recommending additional evaluation or comparison of existing work.
+
     Instead, generate ONE concrete research idea for EACH validated research gap.
 
     ========================================================
@@ -242,30 +246,135 @@ class HypothesisGenerator:
 
     6. Do NOT invent baseline models.
 
-    7. Base every statement ONLY on:
-    - validated gap description
-    - supporting evidence
-    - comparison summary
-    - temporal evidence
+    7. Every proposed research idea MUST explicitly address at least ONE concrete limitation, contradiction, or unresolved issue mentioned in the supporting evidence or comparison summary.
 
-    8. The hypothesis must be experimentally testable.
+    Do NOT generate generic RAG improvement ideas that could apply to any paper.
 
-    9. The methodology should describe only a high-level research plan.
+    The proposed solution should clearly map to the specific validated gap.
 
-    10. If datasets, benchmarks or architectures are not explicitly mentioned,
-        refer only to:
-            - existing methods
-            - existing evaluation settings
-            - existing research approaches
+    8. The hypothesis must describe WHY the proposed research approach is expected to solve the identified limitation. It should make a testable scientific claim rather than simply stating that the research should be conducted.
 
-    11. The expected contribution should clearly explain how the proposed work fills the validated gap.
+    9. The methodology must describe:
+
+        • what existing component is being changed
+        • what new mechanism is introduced
+        • why that mechanism addresses the identified gap
+
+        Avoid vague phrases such as:
+
+        - investigate
+        - explore
+        - study
+        - analyze
+        - compare
+        - evaluate
+
+        unless the validated gap is specifically about benchmarking.
+
+        The methodology should describe a concrete research design rather than a research objective.
+
+    10. Prefer proposing a new research mechanism over proposing a new evaluation.
+
+        Examples of acceptable mechanisms include:
+
+        - adaptive retrieval strategy
+        - dynamic retrieval selection
+        - confidence-aware retrieval
+        - hierarchical retrieval
+        - iterative retrieval refinement
+        - retrieval orchestration
+        - retrieval planning
+        - retrieval quality estimation
+        - query decomposition
+        - adaptive context compression
+
+        Do NOT invent fictional datasets, benchmark suites, published models, or prior work.
+
+        You MAY propose a novel algorithmic mechanism or architectural modification if it is logically derived from the validated research gap.
+
+    11. The expected contribution should explain what new capability, methodology, framework, optimization strategy, or architectural improvement the work introduces.
 
     12. The research direction should contain 3-6 words.
 
     13. If the validated gap mentions limitations or future work,
         the generated idea should directly address them.
 
-    14. Return ONE idea for EVERY gap.
+    14. Avoid beginning research questions with:
+
+    - How effective...
+    - Can existing...
+    - Compare...
+    - Evaluate...
+    - Investigate...
+
+    unless the validated gap is explicitly about benchmarking or evaluation.
+
+    Instead, formulate questions that propose a new solution to the identified limitation.
+
+    15. The hypothesis must predict the expected effect of the proposed mechanism.
+
+    A good hypothesis has the form:
+
+    "Introducing X will improve Y because Z."
+
+    Avoid hypotheses that merely restate the research question.
+
+    16. A good research question should identify:
+
+    • the proposed mechanism
+    • the limitation it addresses
+    • the expected outcome
+
+    Avoid broad questions that could apply to an entire research field.
+
+    17. Return ONE idea for EVERY gap.
+
+    Examples:
+
+    BAD:
+
+        Research Question:
+        How effective are current RAG architectures?
+
+        Hypothesis:
+        Current RAG architectures have different strengths.
+
+        Methodology:
+        Compare existing RAG architectures.
+
+    GOOD:
+
+        Research Question:
+        Can an adaptive retrieval orchestration framework dynamically select retrieval strategies based on query complexity to improve factual consistency?
+
+        Hypothesis:
+        Selecting retrieval strategies according to query characteristics will improve factual accuracy while reducing unnecessary retrieval operations.
+
+        Methodology:
+        Develop a retrieval orchestration module that predicts query complexity and dynamically selects among existing retrieval strategies using current evaluation settings.
+
+    --------------------------------------------------
+
+    BAD:
+
+        Research Question:
+        Can RAG be used in healthcare?
+
+    GOOD:
+
+        Research Question:
+        Can domain-specific retrieval confidence estimation improve factual reliability of RAG systems in healthcare knowledge bases?
+
+    --------------------------------------------------
+
+    Before producing the final answer, verify:
+
+    ✓ Could this idea have been written without reading the validated gap?
+
+    If YES,
+    rewrite it so that it explicitly depends on the validated gap evidence.
+
+    Generic ideas will be considered incorrect.
 
     Return ONLY a JSON array.
 

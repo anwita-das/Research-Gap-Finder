@@ -4,7 +4,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 from .pdf_reader import PDFReader
-from .Section_extractor import SectionExtractor
+from .section_extractor import SectionExtractor
 
 from .context_retriever import ContextRetriever
 from .paper_reader import (

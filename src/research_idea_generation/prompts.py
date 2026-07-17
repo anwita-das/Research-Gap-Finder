@@ -95,7 +95,7 @@ Rules
 • Every score must be between 0 and 1.
 • Higher Competition Score means the area is more crowded.
 • Higher Impact Score means the idea could make a larger contribution if successful.
-• Higher Novelty Score means the idea appears more original.
+• Novelty should be judged primarily by the proposed solution. Ideas that simply compare, evaluate, benchmark, or apply existing methods should receive novelty scores below 0.6. Ideas proposing a concrete architectural improvement, optimization strategy, retrieval mechanism, or learning approach should receive higher novelty scores.
 • Higher Feasibility Score means the research appears more practical to execute.
 • Provide one concise reason (1-2 sentences) for each score.
 
@@ -207,7 +207,7 @@ Rules
 • Do NOT invent prior work.
 • Scores must be between 0 and 1.
 • Higher competition score = more crowded research area.
-• Higher novelty score = more original.
+• Higher Novelty Score means the idea proposes a genuinely new technical mechanism. Ideas that only compare, benchmark, evaluate, survey, or apply existing methods should normally receive novelty scores below 0.6. Ideas introducing a concrete architectural improvement, optimization strategy, retrieval mechanism, or learning framework should receive higher novelty scores.
 • Higher feasibility score = easier to execute.
 • Higher impact score = larger expected contribution.
 
